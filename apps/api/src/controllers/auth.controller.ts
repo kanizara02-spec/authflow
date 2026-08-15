@@ -187,8 +187,10 @@ export async function googleRedirect(_req: Request, res: Response, next: NextFun
   try {
     const { buildGoogleAuthUrl } = await import("../services/googleOAuth.service");
     const { generateOpaqueToken } = await import("@authflow/security");
+    const { logger } = await import("../utils/logger");
     const state = generateOpaqueToken();
-    res.cookie("oauth_state", state, { httpOnly: true, sameSite: "lax", maxAge: 10 * 60_000 });
+    res.cookie("oauth_state", state, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 10 * 60_000 });
+    logger.info("Initiating Google OAuth redirect to Google consent screen");
     const url = buildGoogleAuthUrl(state);
     res.redirect(url);
   } catch (err) {
@@ -200,13 +202,16 @@ export async function googleCallback(req: Request, res: Response, next: NextFunc
   try {
     const { handleGoogleOAuthCallback } = await import("../services/googleOAuth.service");
     const { env } = await import("../config/env");
+    const { logger } = await import("../utils/logger");
+    logger.info("Processing incoming /api/auth/google/callback request");
     const code = req.query.code as string;
     const state = req.query.state as string;
     const expectedState = req.cookies?.oauth_state;
 
-    res.clearCookie("oauth_state");
+    res.clearCookie("oauth_state", { path: "/" });
 
     if (!code) {
+      logger.warn("Google OAuth callback missing authorization code parameter");
       return res.redirect(`${env.FRONTEND_URL}/login?error=${encodeURIComponent("Google consent denied")}`);
     }
 
@@ -214,14 +219,18 @@ export async function googleCallback(req: Request, res: Response, next: NextFunc
     const result = await handleGoogleOAuthCallback(code, state, expectedState, ctx);
 
     if (result.status === "TOTP_REQUIRED") {
+      logger.info("Google OAuth login matched account with 2FA enabled — issuing 2FA challenge redirect");
       return res.redirect(`${env.FRONTEND_URL}/login?step=2fa&challengeToken=${result.challengeToken}`);
     }
 
     setAuthCookies(res, result.accessToken, result.refreshToken);
+    logger.info("Google OAuth login successful. Setting session cookies and redirecting to dashboard");
     res.redirect(`${env.FRONTEND_URL}/dashboard`);
   } catch (err: any) {
     const { env } = await import("../config/env");
+    const { logger } = await import("../utils/logger");
     const message = err?.message || "Google authentication failed";
+    logger.error(`Google OAuth callback failed: ${message}`);
     res.redirect(`${env.FRONTEND_URL}/login?error=${encodeURIComponent(message)}`);
   }
 }

@@ -8,6 +8,7 @@ import { recordSecurityEvent } from "./audit.service";
 import { SecurityEventType } from "@authflow/shared";
 import type { RequestContext } from "../utils/requestContext";
 import { Errors } from "../utils/errors";
+import { logger } from "../utils/logger";
 
 export interface GoogleProfile {
   id: string;
@@ -91,8 +92,10 @@ export async function handleGoogleOAuthCallback(
   }
 
   // Match existing user account or create new user on first Google login
+  logger.info(`Google OAuth profile retrieved for email: ${profile.email}`);
   let user = await userRepository.findByEmail(profile.email);
   if (!user) {
+    logger.info(`Creating new user account for first-time Google login: ${profile.email}`);
     const dummyPasswordHash = `$argon2id$v=19$m=65536,t=3,p=4$${generateOpaqueToken()}$${generateOpaqueToken()}`;
     user = await userRepository.create({
       fullName: profile.name,
