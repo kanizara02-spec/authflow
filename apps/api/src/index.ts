@@ -4,9 +4,10 @@ import { logger } from "./utils/logger";
 import { prisma } from "./config/prisma";
 
 const app = createApp();
+const port = env.PORT || env.API_PORT;
 
-const server = app.listen(env.API_PORT, () => {
-  logger.info(`AuthFlow API listening on port ${env.API_PORT} [${env.NODE_ENV}]`);
+const server = app.listen(port, "0.0.0.0", () => {
+  logger.info(`AuthFlow API listening on port ${port} [${env.NODE_ENV}]`);
   if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_ID !== "mock-google-client-id") {
     logger.info(`Google OAuth configured with Client ID: ${env.GOOGLE_CLIENT_ID.substring(0, 15)}...`);
   }
