@@ -1,0 +1,233 @@
+// AuthFlow database schema.
+// Design notes:
+// - Indexes are added based on actual query patterns (lookups by email,
+//   by userId for a user's sessions/events, by token hash for verification
+//   flows), not blanket-indexed.
+// - Secrets (TOTP secret, recovery codes, tokens) are NEVER stored in
+//   plaintext — see the ciphertext/hash columns below.
+// - Cascading deletes are used for strictly-owned child records (sessions,
+//   TOTP credential, recovery codes, devices, tokens) so deleting a user
+//   cleans up correctly; SecurityEvent is kept on delete-set-null-ish via
+//   a required relation with cascade, since audit rows are meaningless
+//   without the account they describe once the account itself is gone.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String    @id @default(uuid())
+  email              String    @unique
+  fullName           String
+  passwordHash       String // Argon2id
+  role               String    @default("USER") // USER or ADMIN
+  status             String    @default("PENDING_VERIFICATION") // PENDING_VERIFICATION, ACTIVE, DISABLED
+  emailVerifiedAt    DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  totpCredential        TotpCredential?
+  recoveryCodes         RecoveryCode[]
+  sessions              Session[]
+  refreshTokens         RefreshToken[]
+  trustedDevices        TrustedDevice[]
+  securityEvents        SecurityEvent[]
+  passwordResetTokens   PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  emailChangeTokens     EmailChangeToken[]
+  securityNotifications SecurityNotification[]
+  loginAttempts         LoginAttempt[]
+  securitySettings      UserSecuritySettings?
+
+  @@index([status])
+}
+
+model UserSecuritySettings {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  twoFactorEnabled      Boolean  @default(false)
+  notifyOnNewLogin      Boolean  @default(true)
+  notifyOnNewDevice     Boolean  @default(true)
+  notifyOnPasswordChange Boolean @default(true)
+  updatedAt             DateTime @updatedAt
+}
+
+/// One row per user (1:1). TOTP secret is encrypted at rest with AES-256-GCM;
+/// `secretCiphertext`/`secretIv`/`secretAuthTag` together form the encrypted
+/// payload, and `keyVersion` supports future key rotation.
+model TotpCredential {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  secretCiphertext String
+  secretIv         String
+  secretAuthTag    String
+  keyVersion       Int
+  digits           Int      @default(6)
+  period           Int      @default(30)
+  algorithm        String   @default("sha1")
+  verified         Boolean  @default(false) // false until first successful verification during enrollment
+  lastUsedStep     Int? // replay protection: last accepted time-step counter
+  createdAt        DateTime @default(now())
+  activatedAt      DateTime?
+}
+
+/// Recovery codes are stored ONLY as salted hashes (Argon2id), never plaintext.
+model RecoveryCode {
+  id         String    @id @default(uuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash   String
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// A fully-authenticated session. Distinct from RefreshToken: a session is
+/// the logical "device is logged in" record shown in the Sessions UI;
+/// RefreshToken rows are the rotating credential family backing it.
+model Session {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceName   String?
+  browser      String?
+  os           String?
+  ipAddress    String? // consider truncating/anonymizing last octet before storage in production
+  approxLocation String?
+  userAgent    String?
+  createdAt    DateTime  @default(now())
+  lastActiveAt DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  isCurrentHint Boolean  @default(false) // convenience flag, not security-relevant
+
+  refreshTokens RefreshToken[]
+
+  @@index([userId])
+  @@index([userId, revokedAt])
+}
+
+/// Refresh tokens are stored as hashes only. `familyId` groups all tokens
+/// issued from one original login for reuse-detection: if a token is
+/// presented after a newer descendant in its family was already used,
+/// the entire family (and its session) is revoked.
+model RefreshToken {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessionId   String
+  session     Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  tokenHash   String    @unique
+  familyId    String
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  usedAt      DateTime? // set when rotated (consumed to issue the next token)
+  revokedAt   DateTime?
+  replacedById String?
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model TrustedDevice {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceIdentifier String @unique // secure random token stored in an HttpOnly cookie, NOT a client-supplied flag
+  deviceName   String?
+  lastSeenAt   DateTime  @default(now())
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  revokedAt    DateTime?
+
+  @@index([userId])
+}
+
+model SecurityEvent {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  ipAddress String?
+  userAgent String?
+  metadata  String?  // JSON stringified payload, never contains secrets — see audit.service.ts
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([type])
+}
+
+model SecurityNotification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model EmailChangeToken {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newEmail  String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/// Every login attempt (success or failure), used for rate limiting fallback,
+/// lockout logic, and the risk engine's "unusual frequency" signal.
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email     String // kept even on failure/unknown-account for rate limiting by email
+  success   Boolean
+  ipAddress String?
+  userAgent String?
+  reason    String? // e.g. INVALID_PASSWORD, INVALID_TOTP, ACCOUNT_LOCKED
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ipAddress, createdAt])
+}

@@ -1,0 +1,73 @@
+name: AuthFlow CI/CD Security & Integration Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-and-verify:
+    name: Build, Migrations & Full Security Test Suite
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgrespassword
+          POSTGRES_DB: authflow
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Provision PostgreSQL least-privilege roles
+        run: |
+          PGPASSWORD=postgrespassword psql -h localhost -U postgres -d authflow -f scripts/setup-db-roles.sql
+          PGPASSWORD=postgrespassword psql -h localhost -U postgres -d authflow -c "GRANT ALL PRIVILEGES ON SCHEMA public TO authflow_owner; ALTER SCHEMA public OWNER TO authflow_owner;"
+
+      - name: Push Prisma Schema to PostgreSQL container
+        env:
+          DATABASE_URL: "postgresql://authflow_owner:ChangeInProductionOwnerPass!@localhost:5432/authflow?schema=public"
+          TOTP_ENCRYPTION_KEY: "izlIKhvW7CKmQBsXYeQ3JAxVOLe1AQOwWrNCduOMyIo="
+        run: npx prisma db push --schema=apps/api/prisma/schema.prisma
+
+      - name: Build security & monorepo packages
+        run: npm run build -w packages/security
+
+      - name: Run Vitest Security Unit & API Integration Suites
+        env:
+          DATABASE_URL: "postgresql://authflow_owner:ChangeInProductionOwnerPass!@localhost:5432/authflow?schema=public"
+          TOTP_ENCRYPTION_KEY: "izlIKhvW7CKmQBsXYeQ3JAxVOLe1AQOwWrNCduOMyIo="
+          JWT_ACCESS_SECRET: "065iyctdISPonC3OBl+FpCCZptDWpAKDYrHwc+hXlFq+pTJN48ZhStVkDdaFZuYf"
+          JWT_REFRESH_SECRET: "PtQAZoAAe1dD521lf/nyy8BaSK6NNvDvpiZysDePEHgGMVa24uRBVFx6fwqbF/8+"
+        run: npm run test
+
+      - name: Install Playwright Chromium Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run Playwright End-to-End Suite
+        env:
+          DATABASE_URL: "postgresql://authflow_owner:ChangeInProductionOwnerPass!@localhost:5432/authflow?schema=public"
+          TOTP_ENCRYPTION_KEY: "izlIKhvW7CKmQBsXYeQ3JAxVOLe1AQOwWrNCduOMyIo="
+          JWT_ACCESS_SECRET: "065iyctdISPonC3OBl+FpCCZptDWpAKDYrHwc+hXlFq+pTJN48ZhStVkDdaFZuYf"
+          JWT_REFRESH_SECRET: "PtQAZoAAe1dD521lf/nyy8BaSK6NNvDvpiZysDePEHgGMVa24uRBVFx6fwqbF/8+"
+        run: npx playwright test --reporter=line
