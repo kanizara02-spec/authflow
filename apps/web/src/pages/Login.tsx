@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect, type FormEvent } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { authApi } from "../api/endpoints";
 import { extractApiError } from "../api/client";
 import { AuthCard } from "./Register";
@@ -9,6 +9,7 @@ type Step = "credentials" | "totp" | "recovery";
 
 export default function Login() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, logout, refresh } = useAuth();
   const [step, setStep] = useState<Step>("credentials");
   const [email, setEmail] = useState("");
@@ -18,6 +19,20 @@ export default function Login() {
   const [challengeToken, setChallengeToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    const stepParam = searchParams.get("step");
+    const tokenParam = searchParams.get("challengeToken");
+
+    if (errorParam) {
+      setError(decodeURIComponent(errorParam));
+    }
+    if (stepParam === "2fa" && tokenParam) {
+      setChallengeToken(tokenParam);
+      setStep("totp");
+    }
+  }, [searchParams]);
 
   async function onSubmitCredentials(e: FormEvent) {
     e.preventDefault();
