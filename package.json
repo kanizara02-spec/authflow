@@ -12,7 +12,7 @@
     "dev:web": "npm run dev -w apps/web",
     "dev:demo": "npm run dev -w apps/demo-app",
     "build": "npm run build -w packages/security && npm run build -w packages/shared && npm run build -w apps/api && npm run build -w apps/web",
-    "start:api": "node apps/api/dist/index.js",
+    "start:api": "node scripts/start-api.js",
     "start:web": "npx vite preview --workspace=@authflow/web --port $PORT --host 0.0.0.0",
     "test": "npm run test -w apps/api",
     "lint": "npm run lint -w apps/api && npm run lint -w apps/web",
