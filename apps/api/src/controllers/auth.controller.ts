@@ -207,15 +207,21 @@ export async function googleCallback(req: Request, res: Response, next: NextFunc
     res.clearCookie("oauth_state");
 
     if (!code) {
-      return res.redirect(`${env.FRONTEND_URL}/login?error=Google%20consent%20denied`);
+      return res.redirect(`${env.FRONTEND_URL}/login?error=${encodeURIComponent("Google consent denied")}`);
     }
 
     const ctx = getRequestContext(req);
     const result = await handleGoogleOAuthCallback(code, state, expectedState, ctx);
 
+    if (result.status === "TOTP_REQUIRED") {
+      return res.redirect(`${env.FRONTEND_URL}/login?step=2fa&challengeToken=${result.challengeToken}`);
+    }
+
     setAuthCookies(res, result.accessToken, result.refreshToken);
     res.redirect(`${env.FRONTEND_URL}/dashboard`);
-  } catch (err) {
-    next(err);
+  } catch (err: any) {
+    const { env } = await import("../config/env");
+    const message = err?.message || "Google authentication failed";
+    res.redirect(`${env.FRONTEND_URL}/login?error=${encodeURIComponent(message)}`);
   }
 }

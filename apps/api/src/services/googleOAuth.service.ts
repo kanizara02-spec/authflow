@@ -90,7 +90,7 @@ export async function handleGoogleOAuthCallback(
     }
   }
 
-  // Upsert user account
+  // Match existing user account or create new user on first Google login
   let user = await userRepository.findByEmail(profile.email);
   if (!user) {
     const dummyPasswordHash = `$argon2id$v=19$m=65536,t=3,p=4$${generateOpaqueToken()}$${generateOpaqueToken()}`;
@@ -113,10 +113,16 @@ export async function handleGoogleOAuthCallback(
     throw Errors.accountDisabled();
   }
 
+  // 2FA Enforcement: Google login MUST NOT bypass 2FA if active
+  if (user.securitySettings?.twoFactorEnabled) {
+    await recordSecurityEvent({ userId: user.id, type: SecurityEventType.LOGIN_CHALLENGE_ISSUED, ctx, notify: false });
+    return { status: "TOTP_REQUIRED" as const, challengeToken: issueChallengeToken(user.id) };
+  }
+
   const { session, refreshToken } = await createSession(user.id, ctx);
   const accessToken = issueAccessToken({ sub: user.id, role: user.role as "USER" | "ADMIN", sid: session.id });
 
   await recordSecurityEvent({ userId: user.id, type: SecurityEventType.LOGIN_SUCCESS, ctx });
 
-  return { accessToken, refreshToken, sessionId: session.id };
+  return { status: "AUTHENTICATED" as const, accessToken, refreshToken, sessionId: session.id };
 }

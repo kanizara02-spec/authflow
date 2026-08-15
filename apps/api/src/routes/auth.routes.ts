@@ -42,9 +42,8 @@ router.post("/change-password", requireAuth, validate(changePasswordSchema), aut
 router.post("/change-email/request", requireAuth, validate(requestEmailChangeSchema), authController.requestEmailChange);
 router.post("/change-email/confirm", validate(confirmEmailChangeSchema), authController.confirmEmailChange);
 
-router.get("/me", requireAuth, authController.me);
-
 router.get("/google", authController.googleRedirect);
 router.get("/google/callback", authController.googleCallback);
+router.get("/me", requireAuth, authController.me);
 
 export default router;
