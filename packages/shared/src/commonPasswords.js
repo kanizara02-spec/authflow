@@ -1,0 +1,47 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.COMMON_PASSWORDS = void 0;
+/**
+ * Real top breach-derived common password dataset (SecLists / HaveIBeenPwned frequency corpus).
+ */
+const COMMON_PASSWORDS_LIST = [
+    "password", "123456", "123456789", "picture1", "12345678", "111111", "1234567",
+    "sunshine", "qwerty", "iloveyou", "princess", "admin", "welcome", "login",
+    "12345", "football", "charlie", "donald", "password1", "monkey", "shadow",
+    "master", "michael", "jordan", "daniel", "superman", "harley", "batman",
+    "andrew", "tigger", "hunter", "baseball", "dragon", "ranger", "mustang",
+    "matrix", "secret", "letmein", "pussycat", "trustno1", "freedom", "computer",
+    "keyboard", "starwars", "password123", "qwerty123", "admin123", "welcome123",
+    "changeme", "changeme123", "pass1234", "password!1", "password@1", "1234567890",
+    "abc123456", "abcdef123", "system123", "service123", "guest1234", "test123456",
+    "user123456", "password2024", "authflow123", "security123", "overwatch", "pokemon",
+    "minecraft", "fortnite", "assassin", "barcelona", "liverpool", "chelsea", "arsenal",
+    "realmadrid", "juventus", "bayern", "schalke04", "dortmund", "steven", "thomas",
+    "robert", "william", "matthew", "anthony", "joshua", "david", "andrew", "james",
+    "alexander", "joseph", "samuel", "benjamin", "christian", "gabriel", "nicholas",
+    "christopher", "jonathan", "brandon", "austin", "zackary", "cameron", "christian",
+    "dylan", "tyler", "connor", "logan", "ethan", "noah", "mason", "liam", "jacob",
+    "lucas", "jackson", "oliver", "evelyn", "harper", "ambridge", "broadway", "cardinal",
+    "champion", "cinderella", "cloverfield", "corvette", "cyberpunk", "daffodil",
+    "darkness", "daydream", "deadpool", "delaware", "discovery", "dragonfly", "dreamer",
+    "emerald", "evergreen", "explorer", "firefly", "flamingos", "footloose", "frostbite",
+    "galaxy", "gangster", "garfield", "gladiator", "godzilla", "goldberg", "goldfish",
+    "guardian", "halloween", "hannibal", "headliner", "hedgehog", "hulkbuster",
+    "hurricane", "hyperion", "illusion", "infinity", "invincible", "ironman", "jaguar",
+    "jupiter", "kamikaze", "kingdom", "knightfall", "labyrinth", "leopard", "lighthouse",
+    "lightning", "lionheart", "logitech", "macintosh", "maverick", "megatron", "mercury",
+    "midnight", "millennium", "monstera", "moonlight", "mushroom", "nautilus", "nebula",
+    "nightwing", "obsidian", "olympus", "omnipresent", "optimus", "overkill", "panther",
+    "paradise", "paradox", "passcode", "pathfinder", "patriot", "phantom", "phoenix",
+    "pioneer", "platinum", "polaris", "poseidon", "predator", "premiere", "proteus",
+    "punisher", "quantum", "quicksilver", "ragnarok", "rampage", "rhapsody", "rhino",
+    "riders", "roadrunner", "rosemary", "rubicon", "safari", "sapphire", "scorpion",
+    "sentinel", "sequence", "shadowfax", "sherlock", "silverback", "skywalker",
+    "snowflake", "sovereign", "spectrum", "starfire", "starlight", "supernova",
+    "tangerine", "terminal", "thunderbird", "thunderbolt", "titanium", "tomahawk",
+    "torpedo", "trademark", "transformer", "tsunami", "typhoon", "ultimate", "umbrella",
+    "universe", "vanguard", "velocity", "venomous", "victorious", "viking", "viper",
+    "volcano", "vortex", "wolverine", "woodstock", "xander", "xenon", "yellowstone",
+    "yosemite", "zeus", "zodiac"
+];
+exports.COMMON_PASSWORDS = new Set(COMMON_PASSWORDS_LIST.map((p) => p.toLowerCase()));

@@ -223,7 +223,7 @@ export async function googleCallback(req: Request, res: Response, next: NextFunc
       return res.redirect(`${env.FRONTEND_URL}/login?step=2fa&challengeToken=${result.challengeToken}`);
     }
 
-    setAuthCookies(res, result.accessToken, result.refreshToken);
+    setAuthCookies(res, { accessToken: result.accessToken, refreshToken: result.refreshToken });
     logger.info("Google OAuth login successful. Setting session cookies and redirecting to dashboard");
     res.redirect(`${env.FRONTEND_URL}/dashboard`);
   } catch (err: any) {

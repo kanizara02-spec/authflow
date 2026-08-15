@@ -3,7 +3,7 @@ import { prisma } from "../config/prisma";
 import { env } from "../config/env";
 import { userRepository } from "../repositories/user.repository";
 import { createSession } from "./session.service";
-import { issueAccessToken } from "./token.service";
+import { issueAccessToken, issueChallengeToken } from "./token.service";
 import { recordSecurityEvent } from "./audit.service";
 import { SecurityEventType } from "@authflow/shared";
 import type { RequestContext } from "../utils/requestContext";
@@ -97,19 +97,27 @@ export async function handleGoogleOAuthCallback(
   if (!user) {
     logger.info(`Creating new user account for first-time Google login: ${profile.email}`);
     const dummyPasswordHash = `$argon2id$v=19$m=65536,t=3,p=4$${generateOpaqueToken()}$${generateOpaqueToken()}`;
-    user = await userRepository.create({
+    await userRepository.create({
       fullName: profile.name,
       email: profile.email,
       passwordHash: dummyPasswordHash,
       status: "ACTIVE",
       emailVerifiedAt: new Date(),
     });
-    await recordSecurityEvent({ userId: user.id, type: SecurityEventType.USER_REGISTERED, notify: false });
+    user = await userRepository.findByEmail(profile.email);
+    if (user) {
+      await recordSecurityEvent({ userId: user.id, type: SecurityEventType.USER_REGISTERED, notify: false });
+    }
   } else if (user.status === "PENDING_VERIFICATION") {
-    user = await prisma.user.update({
+    await prisma.user.update({
       where: { id: user.id },
       data: { status: "ACTIVE", emailVerifiedAt: new Date() },
     });
+    user = await userRepository.findByEmail(profile.email);
+  }
+
+  if (!user) {
+    throw Errors.unauthorized("Google authentication failed");
   }
 
   if (user.status === "DISABLED") {
