@@ -1,4 +1,6 @@
 import express from "express";
+import path from "path";
+import fs from "fs";
 import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import swaggerUi from "swagger-ui-express";
@@ -68,6 +70,24 @@ export function createApp() {
   app.use("/api/auth", authRoutes);
   app.use("/api/security", securityRoutes);
   app.use("/api/admin", adminRoutes);
+
+  // Serve compiled React Web Frontend UI if available (Unified 1-Service Deployment)
+  const candidateDistPaths = [
+    path.resolve(__dirname, "../../web/dist"),
+    path.resolve(process.cwd(), "apps/web/dist"),
+  ];
+  const webDistPath = candidateDistPaths.find((p) => fs.existsSync(path.join(p, "index.html")));
+
+  if (webDistPath) {
+    logger.info(`Serving Web Frontend UI from: ${webDistPath}`);
+    app.use(express.static(webDistPath));
+    app.get("*", (req, res, next) => {
+      if (req.path.startsWith("/api") || req.path.startsWith("/docs") || req.path.startsWith("/health") || req.path.startsWith("/ready")) {
+        return next();
+      }
+      res.sendFile(path.join(webDistPath, "index.html"));
+    });
+  }
 
   app.use(notFoundHandler);
   app.use(errorHandler);
