@@ -34,7 +34,7 @@ export function createApp() {
     })
   );
 
-  app.get("/", (_req, res) => {
+  app.get("/api", (_req, res) => {
     res.json({
       name: "AuthFlow Security API Platform",
       status: "ONLINE",
@@ -86,6 +86,16 @@ export function createApp() {
         return next();
       }
       res.sendFile(path.join(webDistPath, "index.html"));
+    });
+  } else {
+    app.get("/", (_req, res) => {
+      res.json({
+        name: "AuthFlow Security API Platform",
+        status: "ONLINE",
+        webFrontend: env.FRONTEND_URL,
+        swaggerDocs: `${env.API_URL}/docs`,
+        healthCheck: `${env.API_URL}/health`,
+      });
     });
   }
 
