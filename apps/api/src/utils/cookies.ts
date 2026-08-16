@@ -17,7 +17,10 @@ const baseCookieOptions = {
   httpOnly: true,
   secure: env.COOKIE_SECURE,
   sameSite: "lax" as const,
-  domain: env.NODE_ENV === "production" ? env.COOKIE_DOMAIN : undefined,
+  domain:
+    env.NODE_ENV === "production" && env.COOKIE_DOMAIN && env.COOKIE_DOMAIN !== "localhost" && env.COOKIE_DOMAIN !== "production"
+      ? env.COOKIE_DOMAIN
+      : undefined,
   path: "/",
 };
 
