@@ -23,9 +23,9 @@ const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().optional(),
   API_PORT: z.coerce.number().default(4000),
-  API_URL: sanitizeUrl("http://localhost:4000"),
-  FRONTEND_URL: sanitizeUrl("http://localhost:5173"),
-  DEMO_APP_URL: sanitizeUrl("http://localhost:5174"),
+  API_URL: z.string().default("http://localhost:4000"),
+  FRONTEND_URL: z.string().default("http://localhost:5173"),
+  DEMO_APP_URL: z.string().default("http://localhost:5174"),
 
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   REDIS_URL: z.string().optional(),
