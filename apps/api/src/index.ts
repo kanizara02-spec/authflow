@@ -26,3 +26,11 @@ async function shutdown(signal: string) {
 
 process.on("SIGTERM", () => shutdown("SIGTERM"));
 process.on("SIGINT", () => shutdown("SIGINT"));
+
+process.on("uncaughtException", (err) => {
+  logger.error({ err }, "Uncaught exception detected");
+});
+
+process.on("unhandledRejection", (reason) => {
+  logger.error({ reason }, "Unhandled rejection detected");
+});
