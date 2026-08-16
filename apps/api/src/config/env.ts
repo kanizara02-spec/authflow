@@ -30,7 +30,10 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().default("AuthFlow Security <security@authflow.local>"),
 
   COOKIE_DOMAIN: z.string().default("localhost"),
-  COOKIE_SECURE: z.preprocess((val) => val === "true" || val === true, z.boolean()).default(false),
+  COOKIE_SECURE: z.preprocess(
+    (val) => (val === undefined ? process.env.NODE_ENV === "production" : val === "true" || val === true),
+    z.boolean()
+  ).default(false),
 
   SEED_ADMIN_EMAIL: z.string().email().default("admin@authflow.local"),
   SEED_ADMIN_PASSWORD: z.string().default("ChangeMe!12345"),
