@@ -47,6 +47,11 @@ export function createApp() {
     res.json({ status: "ok", uptime: process.uptime() });
   });
 
+  // Alias routes for platform health checks (Railway, Render, AWS, K8s)
+  app.get(["/healthcheck", "/healthz", "/api/health"], (_req, res) => {
+    res.status(200).json({ status: "ok", uptime: process.uptime() });
+  });
+
   app.get("/ready", async (_req, res) => {
     try {
       await prisma.$queryRaw`SELECT 1`;
