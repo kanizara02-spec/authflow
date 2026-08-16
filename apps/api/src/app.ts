@@ -29,7 +29,6 @@ export function createApp() {
     pinoHttp({
       logger,
       redact: ["req.headers.cookie", "req.headers.authorization"],
-      autoLogging: { ignore: (req) => req.url === "/health" },
     })
   );
 

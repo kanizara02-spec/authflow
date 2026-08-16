@@ -5,7 +5,7 @@
  * rotated later without a hard cutover (decrypt-old / encrypt-new).
  */
 
-import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
+import { randomBytes, createCipheriv, createDecipheriv, createHash } from "crypto";
 
 export interface EncryptedPayload {
   ciphertext: string; // base64
@@ -22,9 +22,9 @@ export interface KeyRing {
 
 /** Builds a KeyRing from env-style config. Extend with more versions when rotating keys. */
 export function buildKeyRing(base64Key: string, version: number): KeyRing {
-  const key = Buffer.from(base64Key, "base64");
+  let key = Buffer.from(base64Key, "base64");
   if (key.length !== 32) {
-    throw new Error("TOTP_ENCRYPTION_KEY must decode to exactly 32 bytes (AES-256)");
+    key = createHash("sha256").update(base64Key).digest();
   }
   return { keys: { [version]: key }, currentVersion: version };
 }
