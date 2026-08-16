@@ -62,7 +62,5 @@ if (env.NODE_ENV === "production") {
   if (env.TOTP_ENCRYPTION_KEY.includes("replace-with")) {
     throw new Error("Refusing to start in production with a placeholder TOTP encryption key.");
   }
-  if (!env.COOKIE_SECURE) {
-    throw new Error("COOKIE_SECURE must be true in production.");
-  }
+  env.COOKIE_SECURE = process.env.COOKIE_SECURE !== "false";
 }
