@@ -1,13 +1,31 @@
 import "dotenv/config";
 import { z } from "zod";
 
+function sanitizeUrl(defaultUrl: string) {
+  return z.preprocess((val) => {
+    if (typeof val !== "string" || !val.trim() || val.includes("<") || val.includes(">")) {
+      return defaultUrl;
+    }
+    let url = val.trim();
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      url = `https://${url}`;
+    }
+    try {
+      new URL(url);
+      return url;
+    } catch {
+      return defaultUrl;
+    }
+  }, z.string().url());
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().optional(),
   API_PORT: z.coerce.number().default(4000),
-  API_URL: z.string().url().default("http://localhost:4000"),
-  FRONTEND_URL: z.string().url().default("http://localhost:5173"),
-  DEMO_APP_URL: z.string().url().default("http://localhost:5174"),
+  API_URL: sanitizeUrl("http://localhost:4000"),
+  FRONTEND_URL: sanitizeUrl("http://localhost:5173"),
+  DEMO_APP_URL: sanitizeUrl("http://localhost:5174"),
 
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   REDIS_URL: z.string().optional(),
