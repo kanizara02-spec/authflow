@@ -1,4 +1,4 @@
-const { totp } = require("../packages/security/dist/totp");
+const { totp, base32Decode } = require("../packages/security/dist/totp");
 
 const API = "http://localhost:4000/api";
 
@@ -49,7 +49,7 @@ async function runDemo() {
   console.log("      Provisioning URI:", otpauthUri);
 
   // 4. RFC 6238 TOTP ALGORITHM COMPUTATION & ACTIVATION
-  const secretBuf = Buffer.from(secretKey, "base64url");
+  const secretBuf = base32Decode(secretKey);
   const currentOtp = totp(secretBuf);
   console.log(`\n[4/6] Computing live RFC 6238 TOTP code: [ ${currentOtp} ]`);
   console.log("      Verifying code to activate 2FA...");
